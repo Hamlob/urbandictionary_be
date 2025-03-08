@@ -1,0 +1,8 @@
+{% include "header.html" %} 
+
+<h1>Informacie o ucte</h1>
+<p>Meno pouzivatela: {{username}}</p>
+<p>Email: {{email}}</p>
+
+<a href="{% url 'change_password' %}"">Zmenit heslo</a>
+<a href="{% url 'user_posts' %}"">Zobrazit vase prispevky</a>

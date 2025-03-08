@@ -17,7 +17,8 @@ $ python3 -m pip install requirements.txt
 * Set up DB
 
 ```bash
-$ docker pull postgres
+$ systemctl start docker
+$ docker pull postgres  #only when first time
 $ docker run --name some-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
 $ cd project
 $ python3 manage.py migrate

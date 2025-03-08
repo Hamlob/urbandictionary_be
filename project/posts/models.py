@@ -19,6 +19,10 @@ class Post(models.Model):
     def __str__(self):
         return self.post_title
 
-
-
+class PostUnverified(models.Model):
+    post_title = models.CharField(max_length = 255)
+    post_text = models.CharField(max_length = 10000)
+    post_example = models.CharField(max_length = 10000)
+    author = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    verification_token = models.CharField(max_length=50) #uuid =36chars
     

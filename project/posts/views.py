@@ -1,31 +1,56 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
-from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout, update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.core.paginator import Paginator
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from django.core.mail import send_mail
+from django.conf import settings
+
+from uuid import uuid4
+from random import randint
 
 from posts.forms import *
+from posts.models import User
+
+POSTS_PER_PAGE = 10
 
 
 #TODO:
 #likes
-#email verification for post creation and registration
-#random word
-#search
+#email verification for registration
 
-def redirect_home():
-    return redirect('/posts/?page=1')
-
-def feed(request):
-    posts = Post.objects.all().order_by('-publish_date')
-
-    paginator = Paginator(posts, 3)                    #paginator objects that handles serving objects on multiple pages
+def _display_posts_paginated(request, posts):
+    """
+    Helper function to display posts with pagination
+    """
+    paginator = Paginator(posts, POSTS_PER_PAGE)                    #paginator objects that handles serving objects on multiple pages
     page_num = request.GET.get("page")
     page_obj = paginator.get_page(page_num)             #retrieves only the posts for the given page
 
     return render(request, 'feed.html', {'page_obj': page_obj})
+
+
+def redirect_home():
+    return redirect('/posts/?page=1')
+
+
+def feed(request):
+    posts = Post.objects.all().order_by('-publish_date')
+    return _display_posts_paginated(request, posts)
+
+
+def random_post(request):
+    max_id = Post.objects.latest('id').id
+    random_id = randint(1,max_id)
+    random_post = Post.objects.filter(id=random_id)
+    if random_post.exists():
+        return render(request, 'feed.html', {'page_obj': random_post})
+    else:
+        return HttpResponse("Prispevok sa nenasiel.")
+
 
 def login(request):
 
@@ -48,16 +73,47 @@ def login(request):
             return HttpResponse("invalid form")
     else:
         form = UserLoginForm()
-        return render(request, 'login.html', {"form":form})
+    
+    return render(request, 'login.html', {"form":form})
+    
     
 @login_required(login_url='/posts/login/')   
 def logout(request):
     auth_logout(request)
     return redirect_home()
 
+
 @login_required(login_url='/posts/login/')   
 def account(request):
-    return HttpResponse("account page")
+    user = request.user
+    name = user.username
+    email = user.email
+
+    return render(request, 'account.html', {
+        'username': name,
+        'email': email})
+
+@login_required(login_url='/posts/login/')
+def change_password(request):
+    if request.method == "POST":
+        user = request.user
+        form = PasswordChangeForm(user,request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request,user)
+            return redirect('account')
+        
+    else:
+        form = PasswordChangeForm(request.user)
+        return render(request, 'change_password.html', {'form': form})
+
+
+@login_required
+def user_posts(request):
+    user = request.user
+    posts = Post.objects.filter(author = user)
+    return _display_posts_paginated(request, posts)
+
 
 def register(request):
     if request.method == "POST":
@@ -71,38 +127,118 @@ def register(request):
         form = UserRegistrationForm()
         return render(request, "register.html", {"form":form})
 
-def random(request):
-    return HttpResponse("random word page")
 
-def create_post(request):
+def _create_post_authenticated(request):
+    """
+    Helper function for creating posts for registered users
+    """
     if request.method == "POST":
         form = CreatePostForm(request.POST)
         if form.is_valid():
             post = form.save(commit=False)
             post.publish_date = timezone.now()
-            if request.user.is_authenticated:
-                post.author = request.user
-                post.save()
-                return redirect_home()
-            else:
-                redirect('create_post_guest', post)      
+            post.author = request.user
+            post.save()
+            return redirect_home()     
         else:
             return HttpResponse("invalid form")
     
     else:
         form = CreatePostForm()
         return render(request, 'create_post.html', {"form":form})
+
+def _create_post_guest(request):
+    """
+    Helper function for creating posts for guest users
+    """
+    if request.method == "POST":
+        form = CreatePostFormGuest(request.POST)
+        if form.is_valid():
+
+            #send verification mail
+            guest_email =form.cleaned_data['email_for_verification']
+            verification_token = str(uuid4())
+            verification_url = f"{request.build_absolute_uri('/posts/verify_post/')}{verification_token}/"
+            email_sent = send_mail(subject='Vytvorenie prispevku - Urban Dictionary',
+                message=f'Vytvorte prispevok kliknutim na link: {verification_url}',
+                from_email='hamlob.com',
+                auth_user=settings.EMAIL_HOST_USER,
+                auth_password=settings.EMAIL_HOST_PASSWORD,
+                recipient_list=[guest_email],
+                fail_silently=False,
+            )
+
+            if email_sent:
+                #remove any unverified posts connected to the user email
+                user = User.objects.filter(email=guest_email).first()
+                if user:
+                    posts = PostUnverified.objects.filter(author = user)
+                    if posts.exists():
+                        posts.delete()
+
+                #create inactive with the mail and automatically generated username from 
+                else:
+                    user = User.objects.create(username=verification_token, email=guest_email, is_active=False)
+                    user.username = f'Anon_{user.pk}'
+                    user.save()
+
+                #create a post (separate table from verified posts)
+                post = form.save(commit=False)
+                post.author = user          #connects the email to the post
+                post.verification_token = verification_token
+                post.save()
+
+                return HttpResponse("Email pre overenie bol poslany.")
+            
+            else:
+                return HttpResponse("Nepodarilo sa poslat email pre overenie.")    
+        else:
+            return HttpResponse("invalid form")
     
+    else:
+        form = CreatePostFormGuest()
+        return render(request, 'create_post.html', {"form":form})
+
+def create_post(request):
+    """
+    Top level function for creating posts for both registered and guest users
+    """
+    if request.user.is_authenticated:
+        return _create_post_authenticated(request)
+    else:
+        return _create_post_guest(request)
+
+
+def verify_post(request, token: str):
+    """
+    Verifies verification link and 
+    """
+    post = PostUnverified.objects.filter(verification_token=token).first()
+    if post:
+        #move the post from unverified table to verified table
+        title = post.post_title
+        text = post.post_text
+        example = post.post_example
+        author = post.author
+        date = timezone.now()
+        Post.objects.create(post_title=title, post_text=text, post_example=example, author=author, publish_date=date)
+        post.delete()
+        
+        return redirect_home()
+    else:
+        return HttpResponse("Neplatny odkaz")
+
+
 def search(request):
     if request.method == "GET":
         search_text = request.GET.get('search')
         vector = SearchVector("post_title", "post_text", "post_example")
         query = SearchQuery(search_text)
-        posts = Post.objects.annotate(rank=SearchRank(vector, query)).order_by("-rank")
-        if posts.exists():
-            feed(request, posts, 0)
-        else:
-            return HttpResponse('No posts found.')
+        search_results = Post.objects\
+            .annotate(rank=SearchRank(vector, query))\
+            .filter(rank__gt=0)\
+            .order_by("-rank")
+        return _display_posts_paginated(request, search_results)
     else:
         return HttpResponse('Invalid request type for search')
-
+    

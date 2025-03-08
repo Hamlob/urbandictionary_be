@@ -1,3 +1,5 @@
+{% include "header.html" %} 
+
 <form action="/posts/login/" method="post">
     {% csrf_token %}
     {{ form }}

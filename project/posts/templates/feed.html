@@ -1,3 +1,5 @@
+{% include "header.html" %} 
+
 {% if page_obj %}
     <ul>
         {% for post in page_obj %}
@@ -18,9 +20,11 @@
                 <a href="?page={{ page_obj.previous_page_number }}">previous</a>
             {% endif %}
     
-            <span class="current">
-                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
-            </span>
+            {% if page_obj.paginator.num_pages %}
+                <span class="current">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+                </span>
+            {% endif %}
     
             {% if page_obj.has_next %}
                 <a href="?page={{ page_obj.next_page_number }}">next</a>
