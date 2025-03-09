@@ -46,10 +46,12 @@ def random_post(request):
     max_id = Post.objects.latest('id').id
     random_id = randint(1,max_id)
     random_post = Post.objects.filter(id=random_id)
-    if random_post.exists():
-        return render(request, 'feed.html', {'page_obj': random_post})
-    else:
-        return HttpResponse("Prispevok sa nenasiel.")
+    while not random_post.exists() and random_id < max_id:
+        random_id += 1
+        random_post = Post.objects.filter(id=random_id)
+
+    return render(request, 'feed.html', {'page_obj': random_post})
+
 
 
 def login(request):
