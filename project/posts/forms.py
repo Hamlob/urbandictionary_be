@@ -25,22 +25,17 @@ class UserRegistrationForm(forms.ModelForm):
         email = cleaned_data.get("email")
         username = cleaned_data.get('username')
 
-        errors = []
-
         if username.startswith('Anon_'):
-            errors.append('Meno nemoze zacinat na Anon_')
+            self.add_error('username', 'Meno nemoze zacinat na Anon_')
 
         if username.startswith(' '):
-            errors.append('Meno nemoze zacinat na medzeru')
+            self.add_error('username', 'Meno nemoze zacinat na medzeru')
 
         if password and confirm_password and password != confirm_password:
-            errors.append("Hesla nesedia.")
+            self.add_error('password', "Hesla nesedia.")
         
         if User.objects.filter(email=email).exists():
-            errors.append("Tento email je uz pouzity.")
-
-        if errors:
-            raise ValidationError(errors)
+            self.add_error('email', "Tento email je uz pouzity.")
         
         return cleaned_data
     

@@ -26,3 +26,6 @@ class PostUnverified(models.Model):
     author = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
     verification_token = models.CharField(max_length=50) #uuid =36chars
     
+class UserVerificationToken(models.Model):
+    value = models.CharField(max_length=50)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)

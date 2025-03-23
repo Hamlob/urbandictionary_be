@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
+from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.decorators import login_required
@@ -13,7 +14,7 @@ from uuid import uuid4
 from random import randint
 
 from posts.forms import *
-from posts.models import User
+from posts.models import *
 
 POSTS_PER_PAGE = 10
 
@@ -43,7 +44,13 @@ def feed(request):
 
 
 def random_post(request):
-    max_id = Post.objects.latest('id').id
+
+    #edge case when there are no posts
+    if Post.objects.all().exists():
+        max_id = Post.objects.latest('id').id
+    else:
+        return redirect_home()
+
     random_id = randint(1,max_id)
     random_post = Post.objects.filter(id=random_id)
     #check in case of deleted items
@@ -67,9 +74,12 @@ def login(request):
             username = form.cleaned_data['username']
             password = form.cleaned_data['password']
             user = authenticate(username=username, password=password)
-            if user and user.is_active:
-                auth_login(request, user)
-                return redirect_home()
+            if user:
+                if user.is_active:
+                    auth_login(request, user)
+                    return redirect_home()
+                else:
+                    return HttpResponse('Odkaz pre overenie je v maily.')
             else:
                 form.add_error(None, "Invalid username or password")
         else:
@@ -122,13 +132,69 @@ def register(request):
     if request.method == "POST":
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
-            #create user
-            form.save()
-            return redirect('login')
+            
+            #send verification mail
+            user_email = form.cleaned_data['email']
+            verification_token = str(uuid4())
+            verification_url = f"{request.build_absolute_uri('/posts/verify_user/')}{verification_token}/"
+            email_sent = send_mail(subject='Overenie registracie - Urban Dictionary',
+                message=f'Pre overenie uctu kliknite na link: {verification_url}',
+                from_email=settings.EMAIL_HOST_USER,
+                auth_user=settings.EMAIL_HOST_USER,
+                auth_password=settings.EMAIL_HOST_PASSWORD,
+                recipient_list=[user_email],
+                fail_silently=False,
+            )
+
+            if email_sent:
+
+                user = User.objects.filter(email=user_email).first()
+                if user:
+                    token = UserVerificationToken.objects.filter(user=user)
+                    # update the verification token for existing user that exists from previous registration without verifying
+                    if token.exists():
+                        token.value = verification_token
+                        token.save()
+                    # update the user that was created from unregistered post creation
+                    else:
+                        token_obj = UserVerificationToken.objects.create(user=user, value=verification_token)
+                        user.set_password = form.cleaned_data['password']
+                        user.username = form.cleaned_data['username']
+                        user.save()
+
+                # create inactive user and verification token
+                else:
+                    user = form.save(commit=False)
+                    user.is_active = False
+                    user.set_password(form.cleaned_data['password'])
+                    user.save()
+                    token_obj = UserVerificationToken.objects.create(user=user, value=verification_token)
+                    
+                messages.success(request, "Email pre overenie bol poslany.")
+                return redirect('login')
         
     else:
         form = UserRegistrationForm()
-        return render(request, "register.html", {"form":form})
+
+    return render(request, "register.html", {"form":form})
+
+
+def verify_user(request, token: str):
+    """
+    Verifies verification link and makes user active
+    """
+    token_obj = UserVerificationToken.objects.filter(value=token).first()
+    if token_obj:
+        #find associated user and make it active
+        user = token_obj.user
+        user.is_active = True
+
+        token_obj.delete()
+        
+        messages.success(request, 'Ucet bol vytvoreny.')
+        return redirect('login')
+    else:
+        return HttpResponse("Neplatny odkaz")
 
 
 def _create_post_authenticated(request):
@@ -144,11 +210,12 @@ def _create_post_authenticated(request):
             post.save()
             return redirect_home()     
         else:
-            return HttpResponse("invalid form")
+            form.add_error('Neplatny formular')
     
     else:
         form = CreatePostForm()
-        return render(request, 'create_post.html', {"form":form})
+
+    return render(request, 'create_post.html', {"form":form})
 
 def _create_post_guest(request):
     """
@@ -164,7 +231,7 @@ def _create_post_guest(request):
             verification_url = f"{request.build_absolute_uri('/posts/verify_post/')}{verification_token}/"
             email_sent = send_mail(subject='Vytvorenie prispevku - Urban Dictionary',
                 message=f'Vytvorte prispevok kliknutim na link: {verification_url}',
-                from_email='hamlob.com',
+                from_email=settings.EMAIL_HOST_USER,
                 auth_user=settings.EMAIL_HOST_USER,
                 auth_password=settings.EMAIL_HOST_PASSWORD,
                 recipient_list=[guest_email],
@@ -179,7 +246,8 @@ def _create_post_guest(request):
                     if posts.exists():
                         posts.delete()
 
-                #create inactive with the mail and automatically generated username from 
+                #create inactive with the mail and assigns temporary username using the token, then generates automatic username from PK
+                # token is used to avoid collision before the username is generated using a PK which is unknown until creation of the object
                 else:
                     user = User.objects.create(username=verification_token, email=guest_email, is_active=False)
                     user.username = f'Anon_{user.pk}'
@@ -191,7 +259,8 @@ def _create_post_guest(request):
                 post.verification_token = verification_token
                 post.save()
 
-                return HttpResponse("Email pre overenie bol poslany.")
+                messages.success(request, "Email pre overenie bol poslany.")
+                return redirect_home()
             
             else:
                 return HttpResponse("Nepodarilo sa poslat email pre overenie.")    
