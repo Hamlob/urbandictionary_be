@@ -1,8 +1,17 @@
-{% include "header.html" %} 
+{% include "header.html" %}
 
-<h1>Informacie o ucte</h1>
-<p>Meno pouzivatela: {{username}}</p>
-<p>Email: {{email}}</p>
+<div class="container">
+    <div class="card">
+        <h1 class="page-title">Informácie o účte</h1>
+        <div class="account-info">
+            <p class="info-item"><strong>Meno používateľa:</strong> {{ username }}</p>
+            <p class="info-item"><strong>Email:</strong> {{ email }}</p>
+        </div>
+        <div class="account-actions">
+            <a href="{% url 'change_password' %}" class="btn btn-secondary">Zmeniť heslo</a>
+            <a href="{% url 'user_posts' %}" class="btn btn-primary">Zobraziť vaše príspevky</a>
+        </div>
+    </div>
+</div>
 
-<a href="{% url 'change_password' %}"">Zmenit heslo</a>
-<a href="{% url 'user_posts' %}"">Zobrazit vase prispevky</a>
+{% include "footer.html" %}

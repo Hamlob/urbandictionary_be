@@ -1,38 +1,49 @@
-{% include "header.html" %} 
+{% include "header.html" %}
 
-{% if page_obj %}
-    <ul>
+<div class="container">
+    {% if page_obj %}
+    <div class="posts-grid">
         {% for post in page_obj %}
-        <li>
-            <h1>{{ post.post_title }}</h1>
-            <p>{{ post.post_text }}</p>
-            <p>{{ post.post_example }}</p>
-            <p>{{ post.publish_date }}</p>
-            <p>{{ post.author }}</p>
-        </li>
+        <article class="post-card">
+            <h2 class="post-title">{{ post.post_title }}</h2>
+            <p class="post-text">{{ post.post_text }}</p>
+            {% if post.post_example %}
+            <div class="post-example">
+                <strong>Príklad:</strong> {{ post.post_example }}
+            </div>
+            {% endif %}
+            <div class="post-meta">
+                <span class="post-date">{{ post.publish_date|date:"d.m.Y H:i" }}</span>
+                <span class="post-author">{{ post.author }}</span>
+            </div>
+        </article>
         {% endfor %}
-    </ul>
-
-    <div class="pagination">
-        <span class="step-links">
-            {% if page_obj.has_previous %}
-                <a href="?page=1">&laquo; first</a>
-                <a href="?page={{ page_obj.previous_page_number }}">previous</a>
-            {% endif %}
-    
-            {% if page_obj.paginator.num_pages %}
-                <span class="current">
-                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
-                </span>
-            {% endif %}
-    
-            {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}">next</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
-            {% endif %}
-        </span>
     </div>
 
-{% else %}
-    <p>No posts available.</p>
-{% endif %}
+    <div class="pagination">
+        <div class="pagination-links">
+            {% if page_obj.has_previous %}
+            <a href="?page=1" class="pagination-link">&laquo; Prvá</a>
+            <a href="?page={{ page_obj.previous_page_number }}" class="pagination-link">Predchádzajúca</a>
+            {% endif %}
+
+            {% if page_obj.paginator.num_pages %}
+            <span class="pagination-current">
+                Strana {{ page_obj.number }} z {{ page_obj.paginator.num_pages }}
+            </span>
+            {% endif %}
+
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="pagination-link">Nasledujúca</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}" class="pagination-link">Posledná &raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>Žiadne príspevky nie sú k dispozícii.</p>
+    </div>
+    {% endif %}
+</div>
+
+{% include "footer.html" %}
