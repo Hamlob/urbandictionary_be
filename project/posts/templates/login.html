@@ -1,7 +1,16 @@
-{% include "header.html" %} 
+{% include "header.html" %}
 
-<form action="/posts/login/" method="post">
-    {% csrf_token %}
-    {{ form }}
-    <input type="submit" value = "Login">
-</form>
+<div class="container">
+    <div class="form-container">
+        <h1 class="page-title">Prihlásenie</h1>
+        <form action="/posts/login/" method="post" class="form">
+            {% csrf_token %}
+            <div class="form-fields">
+                {{ form.as_p }}
+            </div>
+            <input type="submit" value="Prihlásiť sa" class="btn btn-primary">
+        </form>
+    </div>
+</div>
+
+{% include "footer.html" %}

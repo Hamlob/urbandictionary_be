@@ -75,13 +75,14 @@ def login(request):
             password = form.cleaned_data['password']
             user = authenticate(username=username, password=password)
             if user:
-                if user.is_active:
-                    auth_login(request, user)
-                    return redirect_home()
-                else:
-                    return HttpResponse('Odkaz pre overenie je v maily.')
+                auth_login(request, user)
+                return redirect_home()
             else:
-                form.add_error(None, "Invalid username or password")
+                user = User.objects.filter(username=username).first()
+                if user and not user.is_active:
+                    form.add_error(None, "Odkaz pre overenie je v maili")
+                else:
+                    form.add_error(None, "Invalid username or password")
         else:
             return HttpResponse("invalid form")
     else:
@@ -158,8 +159,8 @@ def register(request):
                     # update the user that was created from unregistered post creation
                     else:
                         token_obj = UserVerificationToken.objects.create(user=user, value=verification_token)
-                        user.set_password = form.cleaned_data['password']
                         user.username = form.cleaned_data['username']
+                        user.set_password(form.cleaned_data['password'])
                         user.save()
 
                 # create inactive user and verification token
@@ -188,6 +189,7 @@ def verify_user(request, token: str):
         #find associated user and make it active
         user = token_obj.user
         user.is_active = True
+        user.save()
 
         token_obj.delete()
         

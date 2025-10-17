@@ -34,7 +34,7 @@ class UserRegistrationForm(forms.ModelForm):
         if password and confirm_password and password != confirm_password:
             self.add_error('password', "Hesla nesedia.")
         
-        if User.objects.filter(email=email).exists():
+        if User.objects.filter(email=email, is_active=True).exists():
             self.add_error('email', "Tento email je uz pouzity.")
         
         return cleaned_data
