@@ -1,0 +1,35 @@
+[project]
+name = "urbandictionary"
+version = "1.0"
+description = "Slovak Urban dictionary"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "asgiref==3.8.1",
+    "Django==5.1.6",
+    "djangorestframework==3.15.2",
+    "psycopg==3.2.4",
+    "psycopg2-binary>=2.9.11",
+    "ptyprocess==0.7.0",
+    "python-dotenv==1.0.1",
+    "sqlparse==0.5.3",
+    "typing_extensions==4.12.2",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov=posts --cov-report xml:coverage.xml"
+pythonpath = [
+    ".",
+    "project",
+]
+testpaths = [
+    "project/tests",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "pytest-django>=4.11.1",
+]
+

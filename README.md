@@ -5,13 +5,14 @@
 * Set up virtual environment
 
 ```bash
-$ python3 -m venv venv
+$ pip install uv
+$ uv venv
 ```
 * Install requirements
 
 ```bash
-$ source venv/bin/activate
-$ python3 -m pip install requirements.txt
+$ source .venv/bin/activate
+$ uv pip install requirements.txt
 ```
 
 * Set up DB
@@ -26,7 +27,7 @@ $ python3 manage.py migrate
 * Test
 
 ```bash
-$ source venv/Scripts/activate
+$ source .venv/Scripts/activate
 $ cd project
 $ py.test
 ```
