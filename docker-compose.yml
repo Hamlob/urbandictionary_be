@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: supersecret
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    environment:
+      DEBUG: False
+      ENVIRONMENT: PROD
+      DB_NAME: postgres
+      DB_HOST: db
+      DB_USER: admin
+      DB_PASSWORD: supersecret
+      DB_PORT: 5432
+      EMAIL_HOST: smtp.gmail.com
+      EMAIL_HOST_USER: remotedesktop2322025@gmail.com
+      EMAIL_HOST_PASSWORD: lkde pldj nmtz pywh
+
+    # internal only; if using containerized nginx
+    expose:
+      - "8000"
+
+    # enable if using host level nginx
+    # ports:
+    #   - "8000:8000"
+
+    depends_on:
+      - db
+    # remove if using host level nginx
+    volumes:
+      # Share collected static with Nginx
+      - staticfiles:/app/project/staticfiles
+
+  # remove if using host level nginx
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      - web
+    ports:
+      - "8000:80"     # access via http://localhost:8000
+    volumes:
+      # Mount the Nginx config
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      # Mount the same static volume at a path Nginx serves from
+      - staticfiles:/staticfiles:ro
+
+volumes:
+  pgdata:
+  staticfiles:    # remove if using host level nginx

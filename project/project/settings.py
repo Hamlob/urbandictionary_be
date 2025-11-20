@@ -23,10 +23,15 @@ config = dotenv_values(".env")
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-qxe5gls2+42tb+cbla*ox5*oyyi95c4ixe0$5zmser6$)@q0$y'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+# SECURITY WARNING: don"t run with debug turned on in production!
+if config["ENVIRONMENT"] in ("LOCAL_CONTAINER", "LOCAL"):
+    DEBUG = True
+    ALLOWED_HOSTS = ["*"]
+    CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000", "http://0.0.0.0:8000", "https://localhost:8000"]
+else:
+    DEBUG = False
+    ALLOWED_HOSTS = [config["ALLOWED_HOST"]]
+    CSRF_TRUSTED_ORIGINS = ["https://urbandictionary.sk:8000"]
 
 
 # Application definition
@@ -95,6 +100,8 @@ else:
             'NAME': config["DB_NAME"],
             'HOST': config["DB_HOST"],
             'PORT': config["DB_PORT"],
+            'USER': config["DB_USER"],
+            'PASSWORD': config["DB_PASSWORD"],
         }
     }
 
@@ -137,6 +144,7 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
