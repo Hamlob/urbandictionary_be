@@ -30,8 +30,8 @@ if config["ENVIRONMENT"] in ("LOCAL_CONTAINER", "LOCAL"):
     CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000", "http://0.0.0.0:8000", "https://localhost:8000"]
 else:
     DEBUG = False
-    ALLOWED_HOSTS = [config["ALLOWED_HOST"]]
-    CSRF_TRUSTED_ORIGINS = [config["CSRF_TRUSTED_ORIGINS"]]
+    ALLOWED_HOSTS = [item.strip() for item in config["ALLOWED_HOST"].split(",")]
+    CSRF_TRUSTED_ORIGINS = [item.strip() for item in config["CSRF_TRUSTED_ORIGINS"].split(",")]
 
 
 # Application definition
