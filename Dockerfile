@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Create app directory in container
 WORKDIR /app
 
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock .env ./
 RUN uv sync --frozen --no-editable
 
 COPY project/ /app/project/

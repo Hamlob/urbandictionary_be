@@ -2,13 +2,13 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: postgres
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: supersecret
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:${DB_PORT:-5432}"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U admin -d postgres"]
       interval: 2s
@@ -20,15 +20,15 @@ services:
     build: .
     environment:
       DEBUG: False
-      ENVIRONMENT: PROD
-      DB_NAME: postgres
+      ENVIRONMENT: ${ENVIRONMENT}
+      DB_NAME: ${DB_NAME}
       DB_HOST: db
-      DB_USER: admin
-      DB_PASSWORD: supersecret
-      DB_PORT: 5432
-      EMAIL_HOST: smtp.gmail.com
-      EMAIL_HOST_USER: remotedesktop2322025@gmail.com
-      EMAIL_HOST_PASSWORD: lkde pldj nmtz pywh
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PORT: ${DB_PORT}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD}
 
     # internal only; if using containerized nginx
     expose:
