@@ -31,7 +31,7 @@ if config["ENVIRONMENT"] in ("LOCAL_CONTAINER", "LOCAL"):
 else:
     DEBUG = False
     ALLOWED_HOSTS = [config["ALLOWED_HOST"]]
-    CSRF_TRUSTED_ORIGINS = ["https://urbandictionary.sk:8000"]
+    CSRF_TRUSTED_ORIGINS = ["https://urbandictionary.sk", config["SERVER_IP"]]
 
 
 # Application definition
