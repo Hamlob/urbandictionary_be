@@ -41,5 +41,4 @@ $ python3 manage.py runserver
 * Run server prod
 
 ```bash
-$ docker build -t urbandictionary:latest .
-$ docker run --rm -p 8000:8000 urbandictionary:latest
+$ docker compose up --build
