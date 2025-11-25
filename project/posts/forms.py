@@ -4,14 +4,14 @@ from django.core.exceptions import ValidationError
 
 
 class UserLoginForm(forms.Form):
-    username = forms.CharField(widget=forms.TextInput, min_length=2, max_length=20)
-    password = forms.CharField(widget=forms.PasswordInput)
+    username = forms.CharField(widget=forms.TextInput, min_length=2, max_length=20, label='Prihlasovacie meno')
+    password = forms.CharField(widget=forms.PasswordInput, label='Heslo')
 
 class UserRegistrationForm(forms.ModelForm):
-    username = forms.CharField(widget=forms.TextInput)
+    username = forms.CharField(widget=forms.TextInput, label='Prihlasovacie meno')
     email = forms.CharField(widget=forms.EmailInput)
-    password = forms.CharField(widget=forms.PasswordInput)
-    confirm_password = forms.CharField(widget=forms.PasswordInput)
+    password = forms.CharField(widget=forms.PasswordInput, label='Heslo')
+    confirm_password = forms.CharField(widget=forms.PasswordInput, label='Overiť heslo')
 
     class Meta:
         model = User
@@ -26,23 +26,23 @@ class UserRegistrationForm(forms.ModelForm):
         username = cleaned_data.get('username')
 
         if username.startswith('Anon_'):
-            self.add_error('username', 'Meno nemoze zacinat na Anon_')
+            self.add_error('username', 'Meno nemože začínať na Anon_')
 
         if username.startswith(' '):
-            self.add_error('username', 'Meno nemoze zacinat na medzeru')
+            self.add_error('username', 'Meno nemože začínať medzerou')
 
         if password and confirm_password and password != confirm_password:
-            self.add_error('password', "Hesla nesedia.")
+            self.add_error('password', "Heslá nesedia.")
         
         if User.objects.filter(email=email, is_active=True).exists():
-            self.add_error('email', "Tento email je uz pouzity.")
+            self.add_error('email', "Tento email je už použitý.")
         
         return cleaned_data
     
 class CreatePostForm(forms.ModelForm):
-    post_title = forms.CharField(widget=forms.TextInput)
-    post_text = forms.CharField(widget=forms.Textarea)
-    post_example = forms.CharField(widget=forms.Textarea)
+    post_title = forms.CharField(widget=forms.TextInput, label='Výraz')
+    post_text = forms.CharField(widget=forms.Textarea, label='Definícia')
+    post_example = forms.CharField(widget=forms.Textarea, label='Príklad')
     
     class Meta:
         model = Post
@@ -50,7 +50,7 @@ class CreatePostForm(forms.ModelForm):
 
 #same as CreatePostForm just with email field
 class CreatePostFormGuest(CreatePostForm):
-    email_for_verification = forms.CharField(widget=forms.EmailInput)
+    email_for_verification = forms.CharField(widget=forms.EmailInput, label='Email pre overenie')
     class Meta:
         model = PostUnverified
         fields = ['post_title', 'post_text', 'post_example','email_for_verification']
