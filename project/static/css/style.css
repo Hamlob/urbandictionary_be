@@ -585,11 +585,6 @@ body {
 }
 
 @media (max-width: 480px) {
-    .nav-toggle .hamburger {
-        width: 22px;
-        height: 2px;
-        margin: 4px 0;
-    }
 
     .nav-content {
         padding: 0.75rem;
