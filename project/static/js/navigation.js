@@ -1,12 +1,12 @@
 document.addEventListener('DOMContentLoaded', function () {
     const navToggle = document.querySelector('.nav-toggle');
-    const navContent = document.querySelector('.nav-content');
+    const navLinks = document.querySelector('.nav-links');
 
-    if (navToggle && navContent) {
+    if (navToggle && navLinks) {
         navToggle.addEventListener('click', function () {
             // Toggle active class on both button and nav content
             navToggle.classList.toggle('active');
-            navContent.classList.toggle('active');
+            navLinks.classList.toggle('active');
 
             // Update ARIA attribute for accessibility
             const isExpanded = navToggle.classList.contains('active');
@@ -14,22 +14,22 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // Close menu when clicking on a nav link (optional)
-        const navLinks = document.querySelectorAll('.nav-link');
-        navLinks.forEach(link => {
+        const navLinkItems = document.querySelectorAll('.nav-link');
+        navLinkItems.forEach(link => {
             link.addEventListener('click', function () {
                 navToggle.classList.remove('active');
-                navContent.classList.remove('active');
+                navLinks.classList.remove('active');
                 navToggle.setAttribute('aria-expanded', 'false');
             });
         });
 
         // Close menu when clicking outside (optional)
         document.addEventListener('click', function (event) {
-            const isClickInsideNav = navToggle.contains(event.target) || navContent.contains(event.target);
+            const isClickInsideNav = navToggle.contains(event.target) || navLinks.contains(event.target);
 
-            if (!isClickInsideNav && navContent.classList.contains('active')) {
+            if (!isClickInsideNav && navLinks.classList.contains('active')) {
                 navToggle.classList.remove('active');
-                navContent.classList.remove('active');
+                navLinks.classList.remove('active');
                 navToggle.setAttribute('aria-expanded', 'false');
             }
         });

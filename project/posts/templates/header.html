@@ -12,15 +12,15 @@
 <body>
     <header class="main-header">
         <nav class="navbar">
-            <!-- Add hamburger button -->
-            <button class="nav-toggle" aria-label="Toggle navigation">
-                <span class="hamburger"></span>
-                <span class="hamburger"></span>
-                <span class="hamburger"></span>
-            </button>
 
             <!-- Add a wrapper for better mobile layout control -->
             <div class="nav-content">
+                <!-- Add hamburger button -->
+                <button class="nav-toggle" aria-label="Toggle navigation">
+                    <span class="hamburger"></span>
+                    <span class="hamburger"></span>
+                    <span class="hamburger"></span>
+                </button>
                 <div class="nav-links">
                     <a href="{% url 'feed' %}" class="nav-link">Domov</a>
                     <a href="{% url 'random_post' %}" class="nav-link">Random</a>
