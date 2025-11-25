@@ -475,3 +475,127 @@ body {
         padding: 1rem;
     }
 }
+
+/* Hamburger Menu Button */
+.nav-toggle {
+    display: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    position: relative;
+    z-index: 1001;
+}
+
+.nav-toggle .hamburger {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background-color: var(--text);
+    margin: 5px 0;
+    transition: var(--transition);
+    border-radius: 2px;
+}
+
+/* Animate hamburger to X when active */
+.nav-toggle.active .hamburger:nth-child(1) {
+    transform: rotate(45deg) translate(5px, 5px);
+}
+
+.nav-toggle.active .hamburger:nth-child(2) {
+    opacity: 0;
+}
+
+.nav-toggle.active .hamburger:nth-child(3) {
+    transform: rotate(-45deg) translate(7px, -6px);
+}
+
+/* Desktop navigation wrapper */
+.nav-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 1rem;
+        position: relative;
+    }
+
+    .nav-toggle {
+        display: block;
+        order: -1;
+    }
+
+    .nav-content {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+        flex-direction: column;
+        padding: 1rem;
+        gap: 1rem;
+
+        /* Hidden by default */
+        max-height: 0;
+        overflow: hidden;
+        opacity: 0;
+        transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+    }
+
+    /* Show navigation when active */
+    .nav-content.active {
+        max-height: 500px;
+        /* Adjust based on your content */
+        opacity: 1;
+        padding: 1rem;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .nav-link {
+        width: 100%;
+        text-align: center;
+        padding: 0.75rem;
+    }
+
+    .search-form {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .search-input {
+        flex: 1;
+        min-width: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-toggle .hamburger {
+        width: 22px;
+        height: 2px;
+        margin: 4px 0;
+    }
+
+    .nav-content {
+        padding: 0.75rem;
+    }
+
+    .nav-content.active {
+        padding: 0.75rem;
+    }
+}

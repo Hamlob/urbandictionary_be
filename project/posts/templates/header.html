@@ -12,22 +12,34 @@
 <body>
     <header class="main-header">
         <nav class="navbar">
-            <div class="nav-links">
-                <a href="{% url 'feed' %}" class="nav-link">Domov</a>
-                <a href="{% url 'random_post' %}" class="nav-link">Random</a>
-                <a href="{% url 'create_post' %}" class="nav-link">Nový príspevok</a>
-                <a href="{% url 'account' %}" class="nav-link">Účet</a>
-                {% if user.is_authenticated %}
-                <a href="{% url 'logout' %}" class="nav-link logout">Logout</a>
-                {% else %}
-                <a href="{% url 'login' %}" class="nav-link">Login</a>
-                <a href="{% url 'register' %}" class="nav-link">Registrácia</a>
-                {% endif %}
+            <!-- Add hamburger button -->
+            <button class="nav-toggle" aria-label="Toggle navigation">
+                <span class="hamburger"></span>
+                <span class="hamburger"></span>
+                <span class="hamburger"></span>
+            </button>
+
+            <!-- Add a wrapper for better mobile layout control -->
+            <div class="nav-content">
+                <div class="nav-links">
+                    <a href="{% url 'feed' %}" class="nav-link">Domov</a>
+                    <a href="{% url 'random_post' %}" class="nav-link">Random</a>
+                    <a href="{% url 'create_post' %}" class="nav-link">Nový príspevok</a>
+                    <a href="{% url 'account' %}" class="nav-link">Účet</a>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'logout' %}" class="nav-link logout">Logout</a>
+                    {% else %}
+                    <a href="{% url 'login' %}" class="nav-link">Login</a>
+                    <a href="{% url 'register' %}" class="nav-link">Registrácia</a>
+                    {% endif %}
+                </div>
+                <form action="{% url 'search' %}" method="get" class="search-form">
+                    <input name="search" type="text" placeholder="Hľadať..." class="search-input">
+                    <input type="submit" value="Hľadať" class="search-btn">
+                </form>
             </div>
-            <form action="{% url 'search' %}" method="get" class="search-form">
-                <input name="search" type="text" placeholder="Hľadať..." class="search-input">
-                <input type="submit" value="Hľadať" class="search-btn">
-            </form>
         </nav>
     </header>
+
+    <script src="{% static 'js/navigation.js' %}"></script>
     <main class="main-content">
