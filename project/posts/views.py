@@ -336,7 +336,7 @@ def search(request):
     else:
         return HttpResponseNotAllowed(['GET'])
 
-@login_required
+@login_required(login_url='/posts/login/')
 def toggle_reaction(request, post_id):
     if request.method != 'POST':
         return HttpResponseNotAllowed(['POST'])

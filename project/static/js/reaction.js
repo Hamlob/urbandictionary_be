@@ -30,9 +30,16 @@ document.addEventListener('click', async (e) => {
             body: JSON.stringify({ type })
     });
 
+    if (resp.redirected && resp.url.includes('/posts/login/')) {
+        const go = confirm('Prosím prihláste sa, aby ste mohli reagovať na príspevok.');
+        if (go) {
+            window.location.href = resp.url;
+        }
+        return;
+    }
     if (!resp.ok) {
         if (resp.status === 403) {
-            alert('Prosím prihláste sa, aby ste mohli reagovať');
+            alert('Prosím prihláste sa, aby ste mohli reagovať na príspevok.');
         } else if (resp.status === 503) {
             alert('Služba je momentálne nedostupná.');
         } else {
@@ -54,10 +61,12 @@ document.addEventListener('click', async (e) => {
 
     likeCountEl.textContent = data.likes;
     dislikeCountEl.textContent = data.dislikes;
-}   catch (err) {
+    }   
+    catch (err) {
         console.error(err);
         alert('Network error.');
-}   finally {
+    }   
+    finally {
         btn.disabled = false;
-}
+    }
 });
