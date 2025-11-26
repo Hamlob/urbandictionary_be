@@ -4,7 +4,7 @@
     {% if page_obj %}
     <div class="posts-grid">
         {% for post in page_obj %}
-        <article class="post-card">
+        <article class="post-card" data-post-id="{{ post.id }}">
             <h2 class="post-title">{{ post.post_title }}</h2>
             <p class="post-text">{{ post.post_text }}</p>
             {% if post.post_example %}
@@ -12,10 +12,37 @@
                 <strong>Príklad:</strong> {{ post.post_example }}
             </div>
             {% endif %}
+
             <div class="post-meta">
                 <span class="post-date">{{ post.publish_date|date:"d.m.Y H:i" }}</span>
                 <span class="post-author">{{ post.author }}</span>
             </div>
+
+            {% with user_reaction=post.user_reaction %}
+            <div class="post-reactions">
+                <button
+                    class="reaction-button like-button"
+                    data-type="like"
+                    aria-pressed="{% if user_reaction and user_reaction.type == LIKE %}true{% else %}false{% endif %}"
+                >
+                    👍<span class="reaction-label">{% if user_reaction and user_reaction.type == LIKE %}Liked{% else %}Like{% endif %}</span>
+                </button>
+                <span class="reaction-count like-count">
+                    {{ post.like_count }}
+                </span>
+
+                <button
+                    class="reaction-button dislike-button"
+                    data-type="dislike"
+                    aria-pressed="{% if user_reaction and user_reaction.type == DISLIKE %}true{% else %}false{% endif %}"
+                >
+                    👎<span class="reaction-label">{% if user_reaction and user_reaction.type == DISLIKE %}Disliked{% else %}Dislike{% endif %}</span>
+                </button>
+                <span class="reaction-count dislike-count">
+                    {{ post.dislike_count }}
+                </span>
+            </div>
+            {% endwith %}
         </article>
         {% endfor %}
     </div>
@@ -45,5 +72,7 @@
     </div>
     {% endif %}
 </div>
+{% load static %}
+<script src="{% static 'js/reaction.js' %}"></script>
 
 {% include "footer.html" %}

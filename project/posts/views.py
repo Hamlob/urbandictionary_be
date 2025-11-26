@@ -1,5 +1,5 @@
-from django.shortcuts import render, redirect
-from django.http import HttpResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse, HttpResponseNotAllowed, HttpResponseBadRequest, JsonResponse
 from django.contrib import messages
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout, update_session_auth_hash
 from django.contrib.auth.forms import PasswordChangeForm
@@ -9,6 +9,9 @@ from django.core.paginator import Paginator
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.core.mail import send_mail
 from django.conf import settings
+from django.db import transaction, models
+
+import json
 
 from uuid import uuid4
 from random import randint
@@ -21,7 +24,6 @@ POSTS_PER_PAGE = 10
 
 #TODO:
 #likes
-#email verification for registration
 
 def _display_posts_paginated(request, posts):
     """
@@ -31,7 +33,25 @@ def _display_posts_paginated(request, posts):
     page_num = request.GET.get("page")
     page_obj = paginator.get_page(page_num)             #retrieves only the posts for the given page
 
-    return render(request, 'feed.html', {'page_obj': page_obj})
+    # handle user reactions to posts for both logged in and anonymous users
+    user_reactions = {}
+
+    if request.user.is_authenticated:
+        post_ids = [p.id for p in page_obj.object_list]
+        for reaction in Reaction.objects.filter(post_id__in=post_ids, user=request.user):
+            user_reactions[reaction.post_id] = reaction.type #like, dislake or none
+
+    for post in page_obj.object_list:
+        post.user_reaction = user_reactions.get(post.id, 'none')
+
+    return render(
+        request, 
+        'feed.html', 
+        {
+            'page_obj': page_obj,
+            'user_reactions': user_reactions,
+        }
+    )
 
 
 def redirect_home():
@@ -84,7 +104,7 @@ def login(request):
                 else:
                     form.add_error(None, "Invalid username or password")
         else:
-            return HttpResponse("invalid form")
+            return HttpResponseBadRequest("Invalid form")
     else:
         form = UserLoginForm()
     
@@ -196,7 +216,7 @@ def verify_user(request, token: str):
         messages.success(request, 'Ucet bol vytvoreny.')
         return redirect('login')
     else:
-        return HttpResponse("Neplatny odkaz")
+        return HttpResponseBadRequest("Neplatny odkaz")
 
 
 def _create_post_authenticated(request):
@@ -265,9 +285,9 @@ def _create_post_guest(request):
                 return redirect_home()
             
             else:
-                return HttpResponse("Nepodarilo sa poslat email pre overenie.")    
+                return HttpResponse("Nepodarilo sa poslat email pre overenie.", status=503)    
         else:
-            return HttpResponse("invalid form")
+            return HttpResponseBadRequest("invalid form")
     
     else:
         form = CreatePostFormGuest()
@@ -300,7 +320,7 @@ def verify_post(request, token: str):
         
         return redirect_home()
     else:
-        return HttpResponse("Neplatny odkaz")
+        return HttpResponseBadRequest("Neplatny odkaz")
 
 
 def search(request):
@@ -314,5 +334,69 @@ def search(request):
             .order_by("-rank")
         return _display_posts_paginated(request, search_results)
     else:
-        return HttpResponse('Invalid request type for search')
+        return HttpResponseNotAllowed(['GET'])
+
+@login_required
+def toggle_reaction(request, post_id):
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+    
+    post = get_object_or_404(Post, id=post_id)
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return HttpResponseBadRequest('Invalid JSON')
+    type = payload.get('type')     #like or dislike
+    if type not in (Reaction.ReactionType.LIKE, Reaction.ReactionType.DISLIKE):
+        return HttpResponseBadRequest('Invalid reaction type.')
+    
+    with transaction.atomic():
+        # user reaction to the post already exists
+        try:
+            reaction = Reaction.objects.select_for_update().get(user=request.user, post=post)
+
+            # case for removing an existing reaction (e.g. clicking a like on liked post)
+            if reaction.type == type:
+                reaction.delete()
+                # update post reaction counter
+                if type == Reaction.ReactionType.LIKE:
+                    post.like_count -= 1
+                else:
+                    post.dislike_count -= 1
+                state = 'none'  # user has no reaction to the post
+            
+            # switching from like to dislike or vice versa case
+            else:
+                reaction.type = type
+                reaction.save(update_fields=['type'])
+                if type == Reaction.ReactionType.LIKE:
+                    post.like_count += 1
+                    post.dislike_count -= 1
+                else:
+                    post.dislike_count += 1
+                    post.like_count -= 1
+                state = type
+            
+        except Reaction.DoesNotExist:
+            Reaction.objects.create(user=request.user, post=post, type=type)
+            if type == Reaction.ReactionType.LIKE:
+                post.like_count += 1
+            else:
+                post.dislike_count += 1
+            state = type
+
+        finally:
+            post.save()
+
+    post.refresh_from_db(fields=['like_count', 'dislike_count'])
+    return JsonResponse({
+        'state': state,     # 'like', 'dislike', 'none'
+        'likes': post.like_count,
+        'dislikes': post.dislike_count,
+        'post_id': post_id
+    })
+
+
+
+
     
