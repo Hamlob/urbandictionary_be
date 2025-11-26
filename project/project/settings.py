@@ -33,6 +33,10 @@ else:
     ALLOWED_HOSTS = [item.strip() for item in config["ALLOWED_HOST"].split(",")]
     CSRF_TRUSTED_ORIGINS = [item.strip() for item in config["CSRF_TRUSTED_ORIGINS"].split(",")]
 
+# ADMIN PATH
+ADMIN_PATH = config.get("ADMIN_PATH", "admin/")
+if not ADMIN_PATH.endswith("/"):
+    ADMIN_PATH += "/"
 
 # Application definition
 
