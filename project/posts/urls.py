@@ -16,4 +16,5 @@ urlpatterns = [
     path('change_password/', views.change_password, name = 'change_password'),
     path('user_posts/', views.user_posts, name = 'user_posts'),
     path('search/', views.search, name = 'search'),
+    path('<int:post_id>/react/', views.toggle_reaction, name='toggle_reaction')
 ]

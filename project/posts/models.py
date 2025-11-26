@@ -13,11 +13,20 @@ class Post(models.Model):
     publish_date = models.DateTimeField("date published")
     author = models.ForeignKey(User, on_delete=models.CASCADE)
 
-    upvotes = models.PositiveIntegerField(default=0)
-    downvotes = models.PositiveIntegerField(default=0)
+    like_count = models.PositiveIntegerField(default=0)
+    dislike_count = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return self.post_title
+    
+class Reaction(models.Model):
+    class ReactionType(models.TextChoices):
+        LIKE = "like"
+        DISLIKE = "dislike"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='votes')
+    type = models.CharField(max_length=8, choices=ReactionType.choices)
 
 class PostUnverified(models.Model):
     post_title = models.CharField(max_length = 255)

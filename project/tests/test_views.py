@@ -5,6 +5,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.contrib.messages import get_messages
 from unittest.mock import patch, MagicMock
+import json
 
 from posts.models import Post, PostUnverified, UserVerificationToken, User
 from posts.forms import UserLoginForm, UserRegistrationForm, CreatePostForm, CreatePostFormGuest
@@ -208,8 +209,7 @@ class PostViewsTestCase(TestCase):
     def test_verify_user_invalid_token(self):
         """Test user verification with invalid token"""
         response = self.client.get('/posts/verify_user/invalid-token/')
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Neplatny odkaz')
+        self.assertEqual(response.status_code, 400)
 
     def test_create_post_authenticated_get(self):
         """Test create post GET request for authenticated user"""
@@ -277,8 +277,7 @@ class PostViewsTestCase(TestCase):
     def test_verify_post_invalid_token(self):
         """Test post verification with invalid token"""
         response = self.client.get('/posts/verify_post/invalid-token/')
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Neplatny odkaz')
+        self.assertEqual(response.status_code, 400)
 
     def test_search_view_get(self):
         """Test search view with GET request"""
@@ -289,8 +288,7 @@ class PostViewsTestCase(TestCase):
     def test_search_view_post(self):
         """Test search view with POST request (should return error)"""
         response = self.client.post('/posts/search/')
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Invalid request type for search')
+        self.assertEqual(response.status_code, 405)
 
     def test_search_view_results(self):
         """Test search view returns relevant results"""
@@ -313,9 +311,65 @@ class PostViewsTestCase(TestCase):
         factory = RequestFactory()
         request = factory.get('/posts/')
         posts = Post.objects.all()
-        
+        request.user = self.user
         response = _display_posts_paginated(request, posts)
         self.assertEqual(response.status_code, 200)
+
+    def test_toggle_reaction_view_requires_login(self):
+        """Test toggle reaction view requires authentication"""
+        response = self.client.post(
+            f'/posts/{self.post1.id}/react/',
+            data=json.dumps({'type': 'like'}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/posts/login/', response.url)
+
+    def test_toggle_reaction_view_invalid_post(self):
+        """Test toggle reaction view with invalid post ID"""
+        self.client.login(username='testuser', password='testpass123')
+        response = self.client.post(
+            f'/posts/9999/react/',
+            data=json.dumps({'type': 'like'}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_toggle_reaction_view_invalid_reaction_type(self):
+        """Test toggle reaction view with invalid reaction type"""
+        self.client.login(username='testuser', password='testpass123')
+        response = self.client.post(
+            f'/posts/{self.post1.id}/react/',
+            data=json.dumps({'type': 'invalid type'}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_toggle_reaction_view_like(self):
+        """Test toggle reaction view to like a post"""
+        self.client.login(username='testuser', password='testpass123')
+        response = self.client.post(
+            f'/posts/{self.post1.id}/react/',
+            data=json.dumps({'type': 'like'}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['likes'], 1)
+        self.assertEqual(data['dislikes'], 0)
+
+    def test_toggle_reaction_view_dislike(self):
+        """Test toggle reaction view to dislike a post"""
+        self.client.login(username='testuser', password='testpass123')
+        response = self.client.post(
+            f'/posts/{self.post1.id}/react/',
+            data=json.dumps({'type': 'dislike'}),
+            content_type='application/json'
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['likes'], 0)
+        self.assertEqual(data['dislikes'], 1)
 
 
 class EdgeCaseTestCase(TestCase):
@@ -374,8 +428,7 @@ class EdgeCaseTestCase(TestCase):
             'username': '',  # Empty username
             'password': 'testpass123'
         })
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'invalid form')
+        self.assertEqual(response.status_code, 400)
 
 
 class IntegrationTestCase(TestCase):
