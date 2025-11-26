@@ -43,15 +43,8 @@ def _display_posts_paginated(request, posts):
 
     for post in page_obj.object_list:
         post.user_reaction = user_reactions.get(post.id, 'none')
-
-    return render(
-        request, 
-        'feed.html', 
-        {
-            'page_obj': page_obj,
-            'user_reactions': user_reactions,
-        }
-    )
+ 
+    return render(request, 'feed.html', {'page_obj': page_obj})
 
 
 def redirect_home():

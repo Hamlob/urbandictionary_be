@@ -598,3 +598,48 @@ body {
         padding: 0.75rem;
     }
 }
+
+/* Reaction buttons */
+.post-reactions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 1.2rem;
+}
+
+/* Base button style */
+.reaction-button {
+    background: none;
+    border: none;
+    padding: 0.2rem;
+    cursor: pointer;
+    color: #666;
+    display: flex;
+    align-items: center;
+    font-size: 1.2rem;
+    transition: color 0.15s ease, transform 0.1s ease;
+}
+
+
+/* Hover state */
+.reaction-button:hover {
+    color: #b3aeae;
+    transform: scale(1.1);
+}
+
+/* Active (aria-pressed="true") state */
+.reaction-button[aria-pressed="true"] {
+    color: var(--success); /* main highlight color */
+    transform: scale(1.15);
+}
+
+/* Optional: different color when dislike is active */
+.dislike-button[aria-pressed="true"] {
+    color: var(--danger);;
+}
+
+/* Reaction counts */
+.reaction-count {
+    font-size: 0.9rem;
+    color: #777;
+}

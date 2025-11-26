@@ -23,10 +23,10 @@
                 <button
                     class="reaction-button like-button"
                     data-type="like"
-                    aria-pressed="{% if user_reaction and user_reaction.type == LIKE %}true{% else %}false{% endif %}"
+                    aria-pressed="{% if user_reaction == 'like' %}true{% else %}false{% endif %}"
                 >
-                    👍<span class="reaction-label">{% if user_reaction and user_reaction.type == LIKE %}Liked{% else %}Like{% endif %}</span>
-                </button>
+                    <i class="fa-solid fa-thumbs-up"></i>
+                 </button>
                 <span class="reaction-count like-count">
                     {{ post.like_count }}
                 </span>
@@ -34,9 +34,9 @@
                 <button
                     class="reaction-button dislike-button"
                     data-type="dislike"
-                    aria-pressed="{% if user_reaction and user_reaction.type == DISLIKE %}true{% else %}false{% endif %}"
+                    aria-pressed="{% if user_reaction == 'dislike' %}true{% else %}false{% endif %}"
                 >
-                    👎<span class="reaction-label">{% if user_reaction and user_reaction.type == DISLIKE %}Disliked{% else %}Dislike{% endif %}</span>
+                    <i class="fa-solid fa-thumbs-down"></i>
                 </button>
                 <span class="reaction-count dislike-count">
                     {{ post.dislike_count }}
@@ -72,6 +72,7 @@
     </div>
     {% endif %}
 </div>
+
 {% load static %}
 <script src="{% static 'js/reaction.js' %}"></script>
 

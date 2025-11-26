@@ -56,9 +56,6 @@ document.addEventListener('click', async (e) => {
     likeBtn.setAttribute('aria-pressed', liked ? 'true' : 'false');
     dislikeBtn.setAttribute('aria-pressed', disliked ? 'true' : 'false');
 
-    likeBtn.querySelector('.reaction-label').textContent = liked ? 'Liked' : 'Like';
-    dislikeBtn.querySelector('.reaction-label').textContent = disliked ? 'Disliked' : 'Dislike';
-
     likeCountEl.textContent = data.likes;
     dislikeCountEl.textContent = data.dislikes;
     }   
