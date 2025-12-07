@@ -3,6 +3,7 @@ from django.contrib.sitemaps import Sitemap
 class StaticViewSitemap(Sitemap):
     changefreq = "never"
     priority = 0.5
+    protocol = "https"
 
     def items(self):
         return ['create_post', 'login', 'register', 'account', 'search']
@@ -14,6 +15,7 @@ class StaticViewSitemap(Sitemap):
 class DynamicViewSitemap(Sitemap):
     changefreq = "always"
     priority = 0.8
+    protocol = "https"
 
     def items(self):
         return ['feed', 'random_post', 'search']
