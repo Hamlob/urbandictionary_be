@@ -38,6 +38,12 @@ ADMIN_PATH = config.get("ADMIN_PATH", "admin/")
 if not ADMIN_PATH.endswith("/"):
     ADMIN_PATH += "/"
 
+# DOMAIN
+DOMAIN = 'urbandicionary.sk'
+SITE_NAME = 'Urban Dictionary'
+SITE_ID = 1
+
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -49,6 +55,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
+    'django.contrib.sitemaps',
 ]
 
 MIDDLEWARE = [
