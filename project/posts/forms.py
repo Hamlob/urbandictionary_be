@@ -2,6 +2,7 @@ from django import forms
 from posts.models import User, Post, PostUnverified
 from django.core.exceptions import ValidationError
 
+from .services.blocked_email_domains import get_blocked_domains
 
 class UserLoginForm(forms.Form):
     username = forms.CharField(widget=forms.TextInput, min_length=2, max_length=20, label='Prihlasovacie meno')
@@ -9,7 +10,7 @@ class UserLoginForm(forms.Form):
 
 class UserRegistrationForm(forms.ModelForm):
     username = forms.CharField(widget=forms.TextInput, label='Prihlasovacie meno')
-    email = forms.CharField(widget=forms.EmailInput)
+    email = forms.CharField(widget=forms.EmailInput, label='Email')
     password = forms.CharField(widget=forms.PasswordInput, label='Heslo')
     confirm_password = forms.CharField(widget=forms.PasswordInput, label='Overiť heslo')
 
@@ -24,6 +25,9 @@ class UserRegistrationForm(forms.ModelForm):
         confirm_password = cleaned_data.get("confirm_password")
         email = cleaned_data.get("email")
         username = cleaned_data.get('username')
+
+        if email and any(email.endswith(d) for d in get_blocked_domains()):
+            raise ValidationError("Nepovolený email")
 
         if username.startswith('Anon_'):
             self.add_error('username', 'Meno nemože začínať na Anon_')
@@ -54,3 +58,12 @@ class CreatePostFormGuest(CreatePostForm):
     class Meta:
         model = PostUnverified
         fields = ['post_title', 'post_text', 'post_example','email_for_verification']
+
+    def clean(self):
+        cleaned_data = super().clean()
+        email = cleaned_data.get("email_for_verification")
+
+        if email and any(email.endswith(d) for d in get_blocked_domains()):
+            raise ValidationError("Nepovolený email")
+        
+        return cleaned_data

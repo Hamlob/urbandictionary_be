@@ -38,3 +38,6 @@ class PostUnverified(models.Model):
 class UserVerificationToken(models.Model):
     value = models.CharField(max_length=50)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+class BlockedEmailDomain(models.Model):
+    domain = models.CharField(max_length=255, unique=True)

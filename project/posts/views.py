@@ -186,9 +186,13 @@ def register(request):
                     
                 messages.success(request, "Email pre overenie bol poslany.")
                 return redirect('login')
-        
-    else:
+        else:
+            return HttpResponseBadRequest("Invalid form")
+
+    elif request.method == "GET":
         form = UserRegistrationForm()
+    else:
+        return HttpResponseNotAllowed(['GET', 'POST'])
 
     return render(request, "register.html", {"form":form})
 
@@ -227,8 +231,10 @@ def _create_post_authenticated(request):
         else:
             form.add_error('Neplatny formular')
     
-    else:
+    elif request.method == "GET":
         form = CreatePostForm()
+    else:
+        return HttpResponseNotAllowed(['GET', 'POST'])
 
     return render(request, 'create_post.html', {"form":form})
 
@@ -280,11 +286,13 @@ def _create_post_guest(request):
             else:
                 return HttpResponse("Nepodarilo sa poslat email pre overenie.", status=503)    
         else:
-            return HttpResponseBadRequest("invalid form")
+            return HttpResponseBadRequest("Invalid form")
     
-    else:
+    elif request.method == "GET":
         form = CreatePostFormGuest()
         return render(request, 'create_post.html', {"form":form})
+    else:
+        return HttpResponseNotAllowed(['GET', 'POST'])
 
 def create_post(request):
     """

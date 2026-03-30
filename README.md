@@ -6,13 +6,13 @@
 
 ```bash
 $ pip install uv
-$ uv venv
+$ uv venv --python 3.11
 ```
 * Install requirements
 
 ```bash
 $ source .venv/bin/activate
-$ uv pip install requirements.txt
+$ uv sync
 ```
 
 * Set up DB

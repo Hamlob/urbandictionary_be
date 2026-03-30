@@ -16,3 +16,7 @@ class PostUnverifiedAdmin(admin.ModelAdmin):
 @admin.register(UserVerificationToken)
 class UserVerificationTokenAdmin(admin.ModelAdmin):
     pass
+
+@admin.register(BlockedEmailDomain)
+class BlockedEmailDomainAdmin(admin.ModelAdmin):
+    pass

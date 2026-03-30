@@ -7,7 +7,7 @@ from django.contrib.messages import get_messages
 from unittest.mock import patch, MagicMock
 import json
 
-from posts.models import Post, PostUnverified, UserVerificationToken, User
+from posts.models import BlockedEmailDomain, Post, PostUnverified, UserVerificationToken, User
 from posts.forms import UserLoginForm, UserRegistrationForm, CreatePostForm, CreatePostFormGuest
 
 
@@ -192,6 +192,23 @@ class PostViewsTestCase(TestCase):
         self.assertTrue(UserVerificationToken.objects.filter(user=user).exists())
         mock_send_mail.assert_called_once()
 
+    @patch('posts.views.send_mail')
+    def test_register_view_post_invalid_email(self, mock_send_mail):
+        BlockedEmailDomain.objects.create(domain='invalid.com')
+        mock_send_mail.return_value = True
+        
+        response = self.client.post('/posts/register/', {
+            'username': 'not_existing_user',
+            'email': 'test@invalid.com',
+            'password': 'not_existingpass123',
+            'confirm_password': 'not_existingpass123'
+        })
+        
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content.decode(), "Invalid form")
+        self.assertFalse(User.objects.filter(username='newuser').exists())
+        mock_send_mail.assert_not_called()
+
     def test_verify_user_valid_token(self):
         """Test user verification with valid token"""
         token = UserVerificationToken.objects.create(
@@ -251,6 +268,36 @@ class PostViewsTestCase(TestCase):
         self.assertRedirects(response, '/posts/?page=1')
         self.assertTrue(PostUnverified.objects.filter(post_title='Guest Post').exists())
         mock_send_mail.assert_called_once()
+
+    @patch('posts.views.send_mail')
+    def test_create_post_guest_post_invalid_email(self, mock_send_mail):
+        BlockedEmailDomain.objects.create(domain='invalid.com')
+        mock_send_mail.return_value = True
+        response = self.client.post('/posts/create_post/', {
+            'post_title': 'Guest Post',
+            'post_text': 'Guest content',
+            'post_example': 'Guest example',
+            'email_for_verification': 'guest@invalid.com'
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.content.decode(), "Invalid form")
+        self.assertFalse(PostUnverified.objects.filter(post_title='Guest Post').exists())
+        mock_send_mail.assert_not_called()
+
+    @patch('posts.views.send_mail')
+    def test_create_post_guest_post_valid_email(self, mock_send_mail):
+        BlockedEmailDomain.objects.create(domain='invalid.com')
+        mock_send_mail.return_value = True
+        response = self.client.post('/posts/create_post/', {
+            'post_title': 'Guest Post',
+            'post_text': 'Guest content',
+            'post_example': 'Guest example',
+            'email_for_verification': 'guest@valid.com'
+        })
+        self.assertRedirects(response, '/posts/?page=1')
+        self.assertTrue(PostUnverified.objects.filter(post_title='Guest Post').exists())
+        mock_send_mail.assert_called()
+
 
     def test_verify_post_valid_token(self):
         """Test post verification with valid token"""
