@@ -47,16 +47,17 @@ $ git pull
 
 
 * Run server prod
-* * Pull latest changes:
 
-```bash
-$ docker compose down # if running
-$ git fetch
-$ git pull
-```
+    * Pull latest changes:
 
-* * Build and run container in detached mode (-d)
+    ```bash
+    $ docker compose down # if running
+    $ git fetch
+    $ git pull
+    ```
 
-```bash
-$ docker compose up --build -d
-```
+    * Build and run container in detached mode (-d)
+
+    ```bash
+    $ docker compose up --build -d
+    ```
