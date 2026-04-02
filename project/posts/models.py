@@ -46,6 +46,7 @@ class BlockedEmailDomain(models.Model):
         return self.domain
 
 class SpamRegEx(models.Model):
+    description = models.CharField(max_length=255, blank=True, null=True)
     pattern = models.CharField(max_length=255, unique=True)
 
     class Meta:

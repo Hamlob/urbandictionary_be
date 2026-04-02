@@ -23,4 +23,4 @@ class BlockedEmailDomainAdmin(admin.ModelAdmin):
 
 @admin.register(SpamRegEx)
 class SpamRegExAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('pattern', 'description')
