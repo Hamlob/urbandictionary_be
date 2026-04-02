@@ -7,7 +7,7 @@ from django.contrib.messages import get_messages
 from unittest.mock import patch, MagicMock
 import json
 
-from posts.models import BlockedEmailDomain, Post, PostUnverified, UserVerificationToken, User
+from posts.models import BlockedEmailDomain, Post, PostUnverified, UserVerificationToken, User, SpamRegEx
 from posts.forms import UserLoginForm, UserRegistrationForm, CreatePostForm, CreatePostFormGuest
 
 
@@ -204,8 +204,8 @@ class PostViewsTestCase(TestCase):
             'confirm_password': 'not_existingpass123'
         })
         
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.content.decode(), "Invalid form")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Nepovolený email")
         self.assertFalse(User.objects.filter(username='newuser').exists())
         mock_send_mail.assert_not_called()
 
@@ -279,8 +279,8 @@ class PostViewsTestCase(TestCase):
             'post_example': 'Guest example',
             'email_for_verification': 'guest@invalid.com'
         })
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.content.decode(), "Invalid form")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Nepovolený email')
         self.assertFalse(PostUnverified.objects.filter(post_title='Guest Post').exists())
         mock_send_mail.assert_not_called()
 
@@ -475,7 +475,8 @@ class EdgeCaseTestCase(TestCase):
             'username': '',  # Empty username
             'password': 'testpass123'
         })
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'This field is required.')
 
 
 class IntegrationTestCase(TestCase):
@@ -534,3 +535,40 @@ class IntegrationTestCase(TestCase):
         # Check post is now verified
         self.assertTrue(Post.objects.filter(post_title='Guest Post').exists())
         self.assertFalse(PostUnverified.objects.filter(post_title='Guest Post').exists())
+
+class SpamDetectionTestCase(TestCase):
+    """Test spam detection logic in forms"""
+    
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='testuser',
+            email='testuser@example.com',
+            password='testpass123'
+        )
+        SpamRegEx.objects.create(pattern=r'spammy')
+
+    def test_create_post_form_spam_detection(self):
+        """Test that CreatePostForm detects spam content"""
+        self.client.login(username='testuser', password='testpass123')
+        response = self.client.post('/posts/create_post/', {
+            'post_title': 'This is a spammy title',
+            'post_text': 'This is some spammy content',
+            'post_example': 'This is a spammy example'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Neplatný obsah príspevku.')
+        self.assertFalse(Post.objects.filter(post_title='This is a spammy title').exists())
+
+    def test_create_post_form_guest_spam_detection(self):
+        """Test that CreatePostFormGuest detects spam content"""
+        response = self.client.post('/posts/create_post/', {
+            'post_title': 'This is a spammy title',
+            'post_text': 'This is some spammy content',
+            'post_example': 'This is a spammy example',
+            'email_for_verification': 'guest@example.com'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Neplatný obsah príspevku.')
+        self.assertFalse(PostUnverified.objects.filter(post_title='This is a spammy title').exists())
+

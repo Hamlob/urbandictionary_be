@@ -3,6 +3,7 @@ from posts.models import User, Post, PostUnverified
 from django.core.exceptions import ValidationError
 
 from .services.blocked_email_domains import get_blocked_domains
+from .services.spam_detection import is_spam_text
 
 class UserLoginForm(forms.Form):
     username = forms.CharField(widget=forms.TextInput, min_length=2, max_length=20, label='Prihlasovacie meno')
@@ -27,7 +28,7 @@ class UserRegistrationForm(forms.ModelForm):
         username = cleaned_data.get('username')
 
         if email and any(email.endswith(d) for d in get_blocked_domains()):
-            raise ValidationError("Nepovolený email")
+            self.add_error('email', 'Nepovolený email')
 
         if username.startswith('Anon_'):
             self.add_error('username', 'Meno nemože začínať na Anon_')
@@ -52,6 +53,16 @@ class CreatePostForm(forms.ModelForm):
         model = Post
         fields = ['post_title', 'post_text', 'post_example']
 
+    def clean(self):
+        cleaned_data = super().clean()
+        title = cleaned_data.get("post_title")
+        text = cleaned_data.get("post_text")
+        example = cleaned_data.get("post_example")
+
+        if is_spam_text(title, text, example):
+            self.add_error(None, "Neplatný obsah príspevku.")
+        return cleaned_data
+
 #same as CreatePostForm just with email field
 class CreatePostFormGuest(CreatePostForm):
     email_for_verification = forms.CharField(widget=forms.EmailInput, label='Email pre overenie')
@@ -60,10 +71,10 @@ class CreatePostFormGuest(CreatePostForm):
         fields = ['post_title', 'post_text', 'post_example','email_for_verification']
 
     def clean(self):
-        cleaned_data = super().clean()
+        cleaned_data = super().clean()  # this calls the clean method of CreatePostForm which includes spam detection
         email = cleaned_data.get("email_for_verification")
 
         if email and any(email.endswith(d) for d in get_blocked_domains()):
-            raise ValidationError("Nepovolený email")
+            self.add_error('email_for_verification', 'Nepovolený email')
         
         return cleaned_data

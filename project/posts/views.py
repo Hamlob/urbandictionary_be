@@ -96,8 +96,6 @@ def login(request):
                     form.add_error(None, "Odkaz pre overenie je v maili")
                 else:
                     form.add_error(None, "Invalid username or password")
-        else:
-            return HttpResponseBadRequest("Invalid form")
     else:
         form = UserLoginForm()
     
@@ -186,8 +184,6 @@ def register(request):
                     
                 messages.success(request, "Email pre overenie bol poslany.")
                 return redirect('login')
-        else:
-            return HttpResponseBadRequest("Invalid form")
 
     elif request.method == "GET":
         form = UserRegistrationForm()
@@ -228,8 +224,6 @@ def _create_post_authenticated(request):
             post.author = request.user
             post.save()
             return redirect_home()     
-        else:
-            form.add_error('Neplatny formular')
     
     elif request.method == "GET":
         form = CreatePostForm()
@@ -285,14 +279,13 @@ def _create_post_guest(request):
             
             else:
                 return HttpResponse("Nepodarilo sa poslat email pre overenie.", status=503)    
-        else:
-            return HttpResponseBadRequest("Invalid form")
     
     elif request.method == "GET":
         form = CreatePostFormGuest()
-        return render(request, 'create_post.html', {"form":form})
     else:
         return HttpResponseNotAllowed(['GET', 'POST'])
+    
+    return render(request, 'create_post.html', {"form":form})
 
 def create_post(request):
     """
