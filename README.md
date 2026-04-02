@@ -39,16 +39,24 @@ $ cd project
 $ python3 manage.py runserver
 ```
 
-* Run server prod
-
-Update the app:
 ```bash
 $ docker compose down # if running
 $ git fetch
 $ git pull
 ```
 
-Start in detached mode (-d flag)
+
+* Run server prod
+* * Pull latest changes:
+
+```bash
+$ docker compose down # if running
+$ git fetch
+$ git pull
+```
+
+* * Build and run container in detached mode (-d)
+
 ```bash
 $ docker compose up --build -d
 ```
