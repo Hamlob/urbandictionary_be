@@ -23,6 +23,7 @@ $ docker pull postgres  #only when first time
 $ docker run --name some-postgres -p 5432:5432 -e POSTGRES_PASSWORD=postgres -d postgres
 $ cd project
 $ python3 manage.py migrate
+```
 
 * Test
 
@@ -40,9 +41,11 @@ $ python3 manage.py runserver
 
 * Run server prod
 
-If the app is running:
+Update the app:
 ```bash
-$ docker compose down
+$ docker compose down # if running
+$ git fetch
+$ git pull
 ```
 
 Start in detached mode (-d flag)
