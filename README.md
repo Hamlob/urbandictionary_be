@@ -40,6 +40,12 @@ $ python3 manage.py runserver
 
 * Run server prod
 
+If the app is running:
 ```bash
 $ docker compose down
+```
+
+Start in detached mode (-d flag)
+```bash
 $ docker compose up --build -d
+```
