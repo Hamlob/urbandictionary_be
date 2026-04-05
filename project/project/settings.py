@@ -21,7 +21,7 @@ config = dotenv_values("../.env")
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-qxe5gls2+42tb+cbla*ox5*oyyi95c4ixe0$5zmser6$)@q0$y'
+SECRET_KEY = config.get("DJANGO_SECRET_KEY")
 
 # SECURITY WARNING: don"t run with debug turned on in production!
 if config["ENVIRONMENT"] in ("LOCAL_CONTAINER", "LOCAL"):

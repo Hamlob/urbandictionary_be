@@ -13,10 +13,6 @@ class CustomUserAdmin(admin.ModelAdmin):
 class PostUnverifiedAdmin(admin.ModelAdmin):
     list_display = ('post_title', 'author')
 
-@admin.register(UserVerificationToken)
-class UserVerificationTokenAdmin(admin.ModelAdmin):
-    list_display = ('user',)
-
 @admin.register(BlockedEmailDomain)
 class BlockedEmailDomainAdmin(admin.ModelAdmin):
     pass

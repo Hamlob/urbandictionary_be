@@ -19,6 +19,8 @@ from random import randint
 from posts.forms import *
 from posts.models import *
 
+from .services.verification import generate_signed_token, verify_signed_token
+
 POSTS_PER_PAGE = 10
 
 
@@ -147,10 +149,10 @@ def register(request):
             
             #send verification mail
             user_email = form.cleaned_data['email']
-            verification_token = str(uuid4())
+            verification_token = generate_signed_token(user_id=user_email, purpose="email_verify")
             verification_url = f"{request.build_absolute_uri('/posts/verify_user/')}{verification_token}/"
-            email_sent = send_mail(subject='Overenie registracie - Urban Dictionary',
-                message=f'Pre overenie uctu kliknite na link: {verification_url}',
+            email_sent = send_mail(subject='Overenie registrácie - Urban Dictionary',
+                message=f'Pre overenie účtu kliknite na link: {verification_url}',
                 from_email=settings.EMAIL_HOST_USER,
                 auth_user=settings.EMAIL_HOST_USER,
                 auth_password=settings.EMAIL_HOST_PASSWORD,
@@ -159,28 +161,17 @@ def register(request):
             )
 
             if email_sent:
-
                 user = User.objects.filter(email=user_email).first()
+                # update the username for user that was created previously
                 if user:
-                    token = UserVerificationToken.objects.filter(user=user)
-                    # update the verification token for existing user that exists from previous registration without verifying
-                    if token.exists():
-                        token.value = verification_token
-                        token.save()
-                    # update the user that was created from unregistered post creation
-                    else:
-                        token_obj = UserVerificationToken.objects.create(user=user, value=verification_token)
-                        user.username = form.cleaned_data['username']
-                        user.set_password(form.cleaned_data['password'])
-                        user.save()
-
-                # create inactive user and verification token
+                    user.username = form.cleaned_data['username']
+                # create inactive user
                 else:
                     user = form.save(commit=False)
                     user.is_active = False
-                    user.set_password(form.cleaned_data['password'])
-                    user.save()
-                    token_obj = UserVerificationToken.objects.create(user=user, value=verification_token)
+
+                user.set_password(form.cleaned_data['password'])
+                user.save()
                     
                 messages.success(request, "Email pre overenie bol poslany.")
                 return redirect('login')
@@ -197,19 +188,20 @@ def verify_user(request, token: str):
     """
     Verifies verification link and makes user active
     """
-    token_obj = UserVerificationToken.objects.filter(value=token).first()
-    if token_obj:
-        #find associated user and make it active
-        user = token_obj.user
+    try:
+        user_mail = verify_signed_token(token, expected_purpose="email_verify")
+    except ValueError as e:
+        return HttpResponseBadRequest(str(e))
+    
+    user = User.objects.filter(email=user_mail).first()
+    if user and not user.is_active:
         user.is_active = True
         user.save()
-
-        token_obj.delete()
         
-        messages.success(request, 'Ucet bol vytvoreny.')
+        messages.success(request, 'Účet bol vytvorený.')
         return redirect('login')
     else:
-        return HttpResponseBadRequest("Neplatny odkaz")
+        return HttpResponseBadRequest("Neplatný odkaz")
 
 
 def _create_post_authenticated(request):
@@ -239,13 +231,12 @@ def _create_post_guest(request):
     if request.method == "POST":
         form = CreatePostFormGuest(request.POST)
         if form.is_valid():
-
             #send verification mail
             guest_email =form.cleaned_data['email_for_verification']
-            verification_token = str(uuid4())
+            verification_token = generate_signed_token(user_id=guest_email, purpose="post_verify")
             verification_url = f"{request.build_absolute_uri('/posts/verify_post/')}{verification_token}/"
-            email_sent = send_mail(subject='Vytvorenie prispevku - Urban Dictionary',
-                message=f'Vytvorte prispevok kliknutim na link: {verification_url}',
+            email_sent = send_mail(subject='Vytvorenie príspevku - Urban Dictionary',
+                message=f'Vytvorte príspevok kliknutím na link: {verification_url}',
                 from_email=settings.EMAIL_HOST_USER,
                 auth_user=settings.EMAIL_HOST_USER,
                 auth_password=settings.EMAIL_HOST_PASSWORD,
@@ -261,20 +252,21 @@ def _create_post_guest(request):
                     if posts.exists():
                         posts.delete()
 
-                #create inactive with the mail and assigns temporary username using the token, then generates automatic username from PK
-                # token is used to avoid collision before the username is generated using a PK which is unknown until creation of the object
+                #create inactive user with the mail and assigns temporary username, then generates automatic username from PK
+                # Anon_ is used to avoid conflict as this username cannot be created by user in normal flow
                 else:
-                    user = User.objects.create(username=verification_token, email=guest_email, is_active=False)
-                    user.username = f'Anon_{user.pk}'
-                    user.save()
+                    #atomic operation to avoid race condition in case of multiple posts from the same email at the same time
+                    with transaction.atomic():
+                        user = User.objects.create(username='Anon_', email=guest_email, is_active=False)
+                        user.username = f'Anon_{user.pk}'
+                        user.save()
 
                 #create a post (separate table from verified posts)
                 post = form.save(commit=False)
                 post.author = user          #connects the email to the post
-                post.verification_token = verification_token
                 post.save()
 
-                messages.success(request, "Email pre overenie bol poslany.")
+                messages.success(request, "Email pre overenie bol poslaný.")
                 return redirect_home()
             
             else:
@@ -301,15 +293,22 @@ def verify_post(request, token: str):
     """
     Verifies verification link and 
     """
-    post = PostUnverified.objects.filter(verification_token=token).first()
+    try:
+        guest_email = verify_signed_token(token, expected_purpose="post_verify")
+    except ValueError as e:
+        return HttpResponseBadRequest(str(e))
+
+    #there should be only one post connected to the email as we delete any unverified posts when new post is created with the same email
+    post = PostUnverified.objects.get(author__email=guest_email)
+    # move unverified post to verified post
     if post:
-        #move the post from unverified table to verified table
-        title = post.post_title
-        text = post.post_text
-        example = post.post_example
-        author = post.author
-        date = timezone.now()
-        Post.objects.create(post_title=title, post_text=text, post_example=example, author=author, publish_date=date)
+        Post.objects.create(
+            post_title=post.post_title, 
+            post_text=post.post_text, 
+            post_example=post.post_example, 
+            author=post.author, 
+            publish_date=timezone.now()
+            )
         post.delete()
         
         return redirect_home()
