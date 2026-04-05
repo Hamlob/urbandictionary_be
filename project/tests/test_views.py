@@ -7,8 +7,10 @@ from django.contrib.messages import get_messages
 from unittest.mock import patch, MagicMock
 import json
 
-from posts.models import BlockedEmailDomain, Post, PostUnverified, UserVerificationToken, User, SpamRegEx
+from posts.models import BlockedEmailDomain, Post, PostUnverified, User, SpamRegEx
 from posts.forms import UserLoginForm, UserRegistrationForm, CreatePostForm, CreatePostFormGuest
+
+from posts.services.verification import generate_signed_token, verify_signed_token
 
 
 class PostViewsTestCase(TestCase):
@@ -189,7 +191,6 @@ class PostViewsTestCase(TestCase):
         self.assertTrue(User.objects.filter(username='newuser').exists())
         user = User.objects.get(username='newuser')
         self.assertFalse(user.is_active)
-        self.assertTrue(UserVerificationToken.objects.filter(user=user).exists())
         mock_send_mail.assert_called_once()
 
     @patch('posts.views.send_mail')
@@ -211,17 +212,13 @@ class PostViewsTestCase(TestCase):
 
     def test_verify_user_valid_token(self):
         """Test user verification with valid token"""
-        token = UserVerificationToken.objects.create(
-            user=self.inactive_user,
-            value='test-token-123'
-        )
+        token = generate_signed_token(self.inactive_user.email, purpose="email_verify")
         
-        response = self.client.get(f'/posts/verify_user/test-token-123/')
+        response = self.client.get(f'/posts/verify_user/{token}/')
         self.assertRedirects(response, reverse('login'))
         
         self.inactive_user.refresh_from_db()
         self.assertTrue(self.inactive_user.is_active)
-        self.assertFalse(UserVerificationToken.objects.filter(value='test-token-123').exists())
 
     def test_verify_user_invalid_token(self):
         """Test user verification with invalid token"""
@@ -312,14 +309,13 @@ class PostViewsTestCase(TestCase):
             post_text='Unverified content',
             post_example='Unverified example',
             author=guest_user,
-            verification_token='test-post-token'
         )
         
-        response = self.client.get('/posts/verify_post/test-post-token/')
+        token = generate_signed_token(user_id=guest_user.email, purpose="post_verify")
+        response = self.client.get(f'/posts/verify_post/{token}/')
         self.assertRedirects(response, '/posts/?page=1')
         
         self.assertTrue(Post.objects.filter(post_title='Unverified Post').exists())
-        self.assertFalse(PostUnverified.objects.filter(verification_token='test-post-token').exists())
 
     def test_verify_post_invalid_token(self):
         """Test post verification with invalid token"""
@@ -478,6 +474,93 @@ class EdgeCaseTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'This field is required.')
 
+    @patch('posts.views.send_mail')
+    def test_register_existing_user(self, mock_send_mail):
+        """Test registration for user that already exists"""
+        mock_send_mail.return_value = True
+        
+        User.objects.create_user(
+            username='existinguser',
+            email='existinguser@example.com',
+            password='existingpass123'
+        )
+        response = self.client.post('/posts/register/', {
+            'username': 'existinguser',
+            'email': 'existinguser@example.com',
+            'password': 'newpass123',
+            'confirm_password': 'newpass123'
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Tento email je už použitý.')
+        mock_send_mail.assert_not_called()
+
+    #test creating unverified post with email used by existing user
+    @patch('posts.views.send_mail')
+    def test_create_post_guest_email_used_by_registered_user(self, mock_send_mail):
+        """Test creating guest post with email that belongs to existing user"""
+        mock_send_mail.return_value = True
+        
+        response = self.client.post('/posts/create_post/', {
+            'post_title': 'Guest Post',
+            'post_text': 'Guest content',
+            'post_example': 'Guest example',
+            'email_for_verification': self.user.email  # Email already used by existing user
+        })
+        self.assertRedirects(response, '/posts/?page=1')
+        # check that post is unverified
+        self.assertTrue(PostUnverified.objects.filter(post_title='Guest Post').exists())
+        mock_send_mail.assert_called_once()
+
+    @patch('posts.views.send_mail')
+    def test_verify_post_expired_token(self, mock_send_mail):
+        """Test post verification with expired token"""
+        mock_send_mail.return_value = True
+        
+        response = self.client.post('/posts/create_post/', {
+            'post_title': 'Guest Post',
+            'post_text': 'Guest content',
+            'post_example': 'Guest example',
+            'email_for_verification': 'guest@example.com'
+        })
+        self.assertRedirects(response, '/posts/?page=1')
+        # check that post is unverified
+        self.assertTrue(PostUnverified.objects.filter(post_title='Guest Post').exists())
+        mock_send_mail.assert_called_once()
+        token = mock_send_mail.call_args[1]['message'].split('verify_post/')[1].split('/')[0]
+
+        # Simulate token expiration by mocking time.time to return a time in the future
+        with patch('time.time', return_value=timezone.now().timestamp() + 601):
+            response = self.client.get(f'/posts/verify_post/{token}/')
+
+        self.assertEqual(response.status_code, 400)
+        #check that response contains "Token expired" message even if its 400 status
+        self.assertIn("Token expired", response.content.decode())
+
+    @patch('posts.views.send_mail')
+    def test_verify_user_expired_token(self, mock_send_mail):
+        """Test user verification with expired token"""
+        mock_send_mail.return_value = True
+
+        response = self.client.post('/posts/register/', {
+            'username': 'newuser',
+            'email': 'newuser@example.com',
+            'password': 'newpass123',
+            'confirm_password': 'newpass123'
+        })
+        self.assertRedirects(response, reverse('login'))
+        mock_send_mail.assert_called_once()
+        token = mock_send_mail.call_args[1]['message'].split('verify_user/')[1].split('/')[0]
+
+        # Simulate token expiration by mocking time.time to return a time in the future
+        with patch('time.time', return_value=timezone.now().timestamp() + 601):
+            response = self.client.get(f'/posts/verify_user/{token}/')
+
+        self.assertEqual(response.status_code, 400)
+        #check that response contains "Token expired" message even if its 400 status
+        self.assertIn("Token expired", response.content.decode())
+
+            
+
 
 class IntegrationTestCase(TestCase):
     """Integration tests for complete user workflows"""
@@ -498,12 +581,12 @@ class IntegrationTestCase(TestCase):
             'confirm_password': 'newpass123'
         })
         self.assertRedirects(response, reverse('login'))
+        self.assertTrue(User.objects.filter(username='newuser').exists())
+        self.assertFalse(User.objects.get(username='newuser').is_active)
+        mock_send_mail.assert_called_once()
+        token = mock_send_mail.call_args[1]['message'].split('verify_user/')[1].split('/')[0]
         
-        # Verify user
-        user = User.objects.get(username='newuser')
-        token = UserVerificationToken.objects.get(user=user)
-        
-        response = self.client.get(f'/posts/verify_user/{token.value}/')
+        response = self.client.get(f'/posts/verify_user/{token}/')
         self.assertRedirects(response, reverse('login'))
         
         # Login
@@ -526,15 +609,105 @@ class IntegrationTestCase(TestCase):
             'email_for_verification': 'guest@example.com'
         })
         self.assertRedirects(response, '/posts/?page=1')
+        self.assertTrue(PostUnverified.objects.filter(post_title='Guest Post').exists())
+        mock_send_mail.assert_called_once()
+        token = mock_send_mail.call_args[1]['message'].split('verify_post/')[1].split('/')[0]
         
-        # Verify post
-        unverified_post = PostUnverified.objects.get(post_title='Guest Post')
-        response = self.client.get(f'/posts/verify_post/{unverified_post.verification_token}/')
+        response = self.client.get(f'/posts/verify_post/{token}/')
         self.assertRedirects(response, '/posts/?page=1')
         
         # Check post is now verified
         self.assertTrue(Post.objects.filter(post_title='Guest Post').exists())
         self.assertFalse(PostUnverified.objects.filter(post_title='Guest Post').exists())
+
+    @patch('posts.views.send_mail')
+    def test_create_user_with_email_used_by_unverified_user(self, mock_send_mail):
+        "Test creating a user with email that belongs to unverified guest user and then verifying the email"
+
+        #create guest post
+        response = self.client.post('/posts/create_post/', {
+            'post_title': 'Guest Post',
+            'post_text': 'Guest content',
+            'post_example': 'Guest example',
+            'email_for_verification': 'notused@example.com'
+        })
+
+        #verify that post is created and email is sent
+        self.assertRedirects(response, '/posts/?page=1')
+        post = PostUnverified.objects.filter(author__email='notused@example.com').first()
+        self.assertIsNotNone(post)
+        mock_send_mail.assert_called_once()
+
+        #check that anon user exists
+        unverified_user = User.objects.filter(email='notused@example.com').first()
+        self.assertIsNotNone(unverified_user)
+        self.assertFalse(unverified_user.is_active)
+        self.assertTrue(unverified_user.username.startswith('Anon_'))
+        
+        #try to register user with same email
+        response = self.client.post('/posts/register/', {
+            'username': 'newuser',
+            'email': 'notused@example.com',
+            'password': 'newpass123',
+            'confirm_password': 'newpass123'
+        })
+
+        #check that username changed to new username
+        unverified_user.refresh_from_db()
+        self.assertEqual(unverified_user.username, 'newuser')
+
+        token = mock_send_mail.call_args[1]['message'].split('verify_user/')[1].split('/')[0]
+
+        response = self.client.get(f'/posts/verify_user/{token}/')
+        self.assertRedirects(response, reverse('login'))
+
+        #check that user is active and username is changed to new  
+        unverified_user.refresh_from_db()
+        self.assertTrue(unverified_user.is_active)
+        self.assertEqual(unverified_user.username, 'newuser')
+        #check that post is still there and connected to the user
+        post.refresh_from_db()
+        self.assertEqual(post.author, unverified_user)
+
+    @patch('posts.views.send_mail')
+    def test_create_post_guest_email_used_by_unverified_user(self, mock_send_mail):
+        """Test creating guest post with email that belongs to unverified guest user"""
+        mock_send_mail.return_value = True
+        
+        #register user but dont verify
+        response = self.client.post('/posts/register/', {
+            'username': 'newuser',
+            'email': 'unverified@example.com',
+            'password': 'newpass123',
+            'confirm_password': 'newpass123'
+        })
+        self.assertRedirects(response, reverse('login'))
+        self.assertTrue(User.objects.filter(username='newuser').exists())
+        self.assertFalse(User.objects.get(username='newuser').is_active)
+        mock_send_mail.assert_called_once()
+
+        # Create guest post to create unverified user
+        response = self.client.post('/posts/create_post/', {
+            'post_title': 'First Guest Post',
+            'post_text': 'First guest content',
+            'post_example': 'First guest example',
+            'email_for_verification': 'unverified@example.com'
+        })
+
+        # check that post is created and its connected to the unverified user
+        self.assertRedirects(response, '/posts/?page=1')
+        post = PostUnverified.objects.filter(author__email='unverified@example.com').first()
+        self.assertIsNotNone(post)
+        self.assertTrue(post.author.username == 'newuser')
+
+        # verify post
+        token = mock_send_mail.call_args[1]['message'].split('verify_post/')[1].split('/')[0]
+        response = self.client.get(f'/posts/verify_post/{token}/')
+        self.assertRedirects(response, '/posts/?page=1')
+        post = Post.objects.filter(author__email='unverified@example.com').first()
+        self.assertIsNotNone(post)
+        self.assertEqual(post.author.username, 'newuser')
+
 
 class SpamDetectionTestCase(TestCase):
     """Test spam detection logic in forms"""

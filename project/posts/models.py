@@ -8,8 +8,8 @@ class User(AbstractUser):
 class Post(models.Model):
 
     post_title = models.CharField(max_length = 255)
-    post_text = models.CharField(max_length = 10000)
-    post_example = models.CharField(max_length = 10000)
+    post_text = models.CharField(max_length = 1000)
+    post_example = models.CharField(max_length = 1000)
     publish_date = models.DateTimeField("date published")
     author = models.ForeignKey(User, on_delete=models.CASCADE)
 
@@ -30,14 +30,9 @@ class Reaction(models.Model):
 
 class PostUnverified(models.Model):
     post_title = models.CharField(max_length = 255)
-    post_text = models.CharField(max_length = 10000)
-    post_example = models.CharField(max_length = 10000)
+    post_text = models.CharField(max_length = 1000)
+    post_example = models.CharField(max_length = 1000)
     author = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
-    verification_token = models.CharField(max_length=50) #uuid =36chars
-    
-class UserVerificationToken(models.Model):
-    value = models.CharField(max_length=50)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
 
 class BlockedEmailDomain(models.Model):
     domain = models.CharField(max_length=255, unique=True)
